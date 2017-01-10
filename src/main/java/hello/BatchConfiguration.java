@@ -61,15 +61,6 @@ public class BatchConfiguration {
     @Autowired
     public DataSource dataSource;
 
-    @Scheduled(fixedRate = 3000)
-    public void reportCurrentTime()throws Exception {
-        System.out.println("The Time is now");
-	 JobParameters param = new JobParametersBuilder().addString("JobID",String.valueOf(System.currentTimeMillis())).toJobParameters();
-
-	//change the job function to run tasklet
-	JobExecution execution = jobLauncher.run(importUserJob(), param);
-    }
-
     @Bean
     protected Tasklet tasklet(){
 	return new Tasklet(){

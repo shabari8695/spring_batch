@@ -28,9 +28,14 @@ public class JobCompletionNotificationListener extends JobExecutionListenerSuppo
 	}
 
 	@Override
+	public void beforeJob(JobExecution jobExecution){
+		System.out.println("Job starting.....");
+	}
+
+	@Override
 	public void afterJob(JobExecution jobExecution) {
 		if(jobExecution.getStatus() == BatchStatus.COMPLETED) {
-			log.info("!!! JOB FINISHED! Time to verify the results");
+			System.out.println("Job finished.....Checking file content");
 
 			List<Person> results = jdbcTemplate.query("SELECT first_name, last_name FROM people", new RowMapper<Person>() {
 				@Override

@@ -12,7 +12,19 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
+import org.springframework.batch.core.JobParametersInvalidException;
+import org.springframework.batch.core.launch.NoSuchJobExecutionException;
+import org.springframework.batch.core.launch.NoSuchJobException;
+import org.springframework.batch.core.repository.JobRestartException;
+import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
+import org.springframework.batch.core.launch.support.SimpleJobOperator;
 import org.springframework.batch.core.launch.JobOperator;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.configuration.JobFactory;
+import org.springframework.batch.core.configuration.JobRegistry;
+import org.springframework.batch.core.explore.JobExplorer;
+
+import org.springframework.batch.core.JobInstance;
 
 import hello.Person;
 
@@ -20,7 +32,13 @@ import hello.Person;
 public class JobCompletionNotificationListener extends JobExecutionListenerSupport {
 
 	@Autowired
-	JobOperator jobOperator;
+        private JobExplorer jobExplorer;
+        @Autowired
+        private JobRepository jobRepository;
+
+	@Autowired
+	SimpleJobOperator simpleJobOperator;
+
 	private final JdbcTemplate jdbcTemplate;
 
 	@Autowired
@@ -39,11 +57,11 @@ public class JobCompletionNotificationListener extends JobExecutionListenerSuppo
 	@Override
 	public void afterJob(JobExecution jobExecution) {
 
-		//could be used to get 		
+		//could be used to get 			
 
+		String arr[]=jobExecution.getJobParameters().toString().split("\\W");
 		if(jobExecution.getStatus() == BatchStatus.COMPLETED) {
-			System.out.println("Job finished.....Checking file content");
-
+			System.out.println("Job finished.....Checking file content  "+jobExecution.getJobInstance().getId().toString());
 			List<Person> results = jdbcTemplate.query("SELECT first_name, last_name FROM people", new RowMapper<Person>() {
 				@Override
 				public Person mapRow(ResultSet rs, int row) throws SQLException {
@@ -55,10 +73,25 @@ public class JobCompletionNotificationListener extends JobExecutionListenerSuppo
 				System.out.println("Found <" + person + "> in the database.");
 			}
 
-		try{
-			long id=jobOperator.restart(jobExecution.getJobId());
-		}catch(Exception e){System.out.println("restart working");}
+			
 
+		try{	
+			List<JobInstance> instances = jobExplorer.getJobInstances("importUserJob", 0, 10);
+            		System.out.println("Explorer Size : " + instances.size());
+            		for(JobInstance instance:instances) {
+			        List<JobExecution> executions = jobExplorer.getJobExecutions(instance);
+			        System.out.println("Executions size : " + executions.size()+"   "+instance.getId());
+					if(executions.size() > 0) {
+		            			jobExecution = executions.get(executions.size() - 1);
+						long id=simpleJobOperator.restart(instance.getId());
+					}
+			}
+		}catch(JobInstanceAlreadyCompleteException e){System.out.println("JobInstanceAlreadyCompleteException");
+		}catch(NoSuchJobExecutionException e){System.out.println("NoSuchJobExecutionException");
+		}catch(NoSuchJobException e){System.out.println("NoSuchJobException ");
+		}catch(JobRestartException e){System.out.println("JobRestartException");
+		}catch(JobParametersInvalidException e){System.out.println("JobParametersInvalidException");
+		}
 		}
 	}
 }

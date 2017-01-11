@@ -1,5 +1,8 @@
 package hello;
 
+import hello.JobListener.JobCompletionNotificationListener;
+import hello.StepListeners.StepListener;
+
 import javax.sql.DataSource;
 
 import java.util.Date;
@@ -23,18 +26,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-//for starting job by code
-import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.JobParameters;
-import org.springframework.batch.core.JobParametersInvalidException;
-import org.springframework.batch.core.launch.JobLauncher;
-import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
-import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
-import org.springframework.batch.core.repository.JobRestartException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.stereotype.Component;
-import org.springframework.batch.core.JobParametersBuilder;
 
 //for tasklet
 import org.springframework.batch.core.step.tasklet.Tasklet;
@@ -42,15 +33,38 @@ import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.StepContribution;
 
-//for using scheduling
-import org.springframework.scheduling.annotation.Scheduled;
+//for using job operator
+import org.springframework.batch.core.launch.JobOperator;
+import org.springframework.batch.core.launch.support.SimpleJobOperator;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.configuration.JobFactory;
+import org.springframework.batch.core.configuration.JobRegistry;
+import org.springframework.batch.core.explore.JobExplorer;
+import org.springframework.batch.core.launch.JobLauncher;
+
+//to get id for jobOperator to stop execution
+import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.scope.context.StepContext;
+import org.springframework.batch.core.StepExecution;
+
+
 
 @Configuration
 @EnableBatchProcessing
-public class BatchConfiguration {
+public class BatchConfiguration {  
+
+    
+    @Autowired
+    public JobRepository jobRepository;
 
     @Autowired
-    JobLauncher jobLauncher;    
+    public JobRegistry jobRegistry;
+
+    @Autowired
+    public JobLauncher jobLauncher;
+
+    @Autowired
+    public JobExplorer jobExplorer;
 
     @Autowired
     public JobBuilderFactory jobBuilderFactory;
@@ -61,12 +75,31 @@ public class BatchConfiguration {
     @Autowired
     public DataSource dataSource;
 
+    StepListener steplistener;
+
+    public BatchConfiguration(){
+	steplistener=new StepListener();
+    }
+
+    @Bean
+    public JobOperator jobOperator() {
+        SimpleJobOperator jobOperator = new SimpleJobOperator();
+        jobOperator.setJobExplorer(jobExplorer);
+        jobOperator.setJobLauncher(jobLauncher);
+        jobOperator.setJobRegistry(jobRegistry);
+        jobOperator.setJobRepository(jobRepository);
+        return jobOperator;
+    }
+
     @Bean
     protected Tasklet tasklet(){
 	return new Tasklet(){
 		@Override
 		public RepeatStatus execute(StepContribution contribution,ChunkContext context) {
-				System.out.println("Tasklet running...");
+				StepContext stepContext = context.getStepContext();
+    				StepExecution stepExecution = stepContext.getStepExecution();
+    				JobExecution execution = stepExecution.getJobExecution();
+				System.out.println("Tasklet running..."+execution.getStatus());
 				return RepeatStatus.FINISHED;
 			}
 	};
@@ -109,20 +142,22 @@ public class BatchConfiguration {
         return jobBuilderFactory.get("importUserJob")
                 .incrementer(new RunIdIncrementer())
                 .listener(listener)
+		//use below code for conditional execution of steps
                 //.flow(step1())
 		//.on("*").to(step2())
                 //.end()
-		.start(step1()).next(step2())
+		.start(step1(steplistener)).next(step2())
                 .build();
     }
 
     @Bean
-    public Step step1() {
+    public Step step1(StepListener listener) {
         return stepBuilderFactory.get("step1")
                 .<Person, Person> chunk(10)
                 .reader(reader())
                 .processor(processor())
                 .writer(writer())
+		.listener(listener)
                 .build();
     }
     // end::jobstep[]

@@ -54,7 +54,8 @@ import org.springframework.batch.core.configuration.support.ReferenceJobFactory;
 
 @Configuration
 @EnableBatchProcessing
-public class BatchConfiguration {  
+public class BatchConfiguration { 
+	int x=0; 
 
 
 	@Autowired
@@ -113,8 +114,11 @@ public class BatchConfiguration {
 					StepContext stepContext = context.getStepContext();
 					StepExecution stepExecution = stepContext.getStepExecution();
 					JobExecution execution = stepExecution.getJobExecution();
-					stepExecution.setTerminateOnly();
+
+					//just force the step to stop once to check if restart works
+					if(x==0){stepExecution.setTerminateOnly();x+=1;}
 					//boolean id=simpleJobOperator().stop(execution.getJobId());
+
 					System.out.println("Tasklet running...................."+execution.getJobId());
 					return RepeatStatus.FINISHED;
 				}

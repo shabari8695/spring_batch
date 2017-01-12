@@ -91,8 +91,8 @@ public class ScheduledTasks {
 		}catch(NoSuchJobExecutionException e){System.out.println("NoSuchJobExecutionException");
 		}catch(NoSuchJobException e){System.out.println("NoSuchJobException ");
 		}catch(JobRestartException e){System.out.println("JobRestartException");
-		}catch(JobParametersInvalidException e){System.out.println("JobParametersInvalidException");
-		}		
+		}catch(JobParametersInvalidException e){System.out.println("JobParametersInvalidException");}
+		
 		jobRegistry.unregister(importUserJob.getName());
 		System.out.println("Exit status : "+execution.getStatus());
         	//long executionId = simpleJobOperator.start(job, null);

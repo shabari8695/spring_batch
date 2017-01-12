@@ -55,11 +55,12 @@ public class JobCompletionNotificationListener extends JobExecutionListenerSuppo
 	}
 
 	@Override
-	public void afterJob(JobExecution jobExecution) {
+	public void afterJob(JobExecution jobExecution){
 
-		//could be used to get 			
+		//could be used to get 	
 
-		String arr[]=jobExecution.getJobParameters().toString().split("\\W");
+		System.out.println("after job.....");	
+
 		if(jobExecution.getStatus() == BatchStatus.COMPLETED) {
 			System.out.println("Job finished.....Checking file content  "+jobExecution.getJobInstance().getId().toString());
 			List<Person> results = jdbcTemplate.query("SELECT first_name, last_name FROM people", new RowMapper<Person>() {
@@ -73,25 +74,6 @@ public class JobCompletionNotificationListener extends JobExecutionListenerSuppo
 				System.out.println("Found <" + person + "> in the database.");
 			}
 
-			
-
-		try{	
-			List<JobInstance> instances = jobExplorer.getJobInstances("importUserJob", 0, 10);
-            		System.out.println("Explorer Size : " + instances.size());
-            		for(JobInstance instance:instances) {
-			        List<JobExecution> executions = jobExplorer.getJobExecutions(instance);
-			        System.out.println("Executions size : " + executions.size()+"   "+instance.getId());
-					if(executions.size() > 0) {
-		            			jobExecution = executions.get(executions.size() - 1);
-						long id=simpleJobOperator.restart(instance.getId());
-					}
-			}
-		}catch(JobInstanceAlreadyCompleteException e){System.out.println("JobInstanceAlreadyCompleteException");
-		}catch(NoSuchJobExecutionException e){System.out.println("NoSuchJobExecutionException");
-		}catch(NoSuchJobException e){System.out.println("NoSuchJobException ");
-		}catch(JobRestartException e){System.out.println("JobRestartException");
-		}catch(JobParametersInvalidException e){System.out.println("JobParametersInvalidException");
-		}
 		}
 	}
 }

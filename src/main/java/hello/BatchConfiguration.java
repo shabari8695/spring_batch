@@ -3,6 +3,8 @@ package hello;
 import hello.JobListener.JobCompletionNotificationListener;
 import hello.StepListeners.StepListener;
 
+import org.springframework.jdbc.core.JdbcTemplate;
+
 import javax.sql.DataSource;
 
 import java.util.Date;
@@ -46,6 +48,7 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.scope.context.StepContext;
 import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.configuration.support.ReferenceJobFactory;
 
 
 
@@ -76,10 +79,19 @@ public class BatchConfiguration {
 	public DataSource dataSource;
 
 	StepListener steplistener;
+	JobCompletionNotificationListener jlistener;
+	JdbcTemplate jdbcTemplate;
 
 	public BatchConfiguration(){
 		steplistener=new StepListener();
+		jdbcTemplate=new JdbcTemplate();
+		jlistener=new JobCompletionNotificationListener(jdbcTemplate);
 	}
+
+	@Bean
+    	public JobFactory jobFactory() throws Exception {
+        	return new ReferenceJobFactory(importUserJob(jlistener));
+    	}
 
 
 	@Bean
@@ -92,15 +104,18 @@ public class BatchConfiguration {
 		return simpleJobOperator;
 	}
 
+
 	@Bean
 	protected Tasklet tasklet(){
 		return new Tasklet(){
 			@Override
-			public RepeatStatus execute(StepContribution contribution,ChunkContext context) {
+			public RepeatStatus execute(StepContribution contribution,ChunkContext context) throws Exception {
 					StepContext stepContext = context.getStepContext();
 					StepExecution stepExecution = stepContext.getStepExecution();
 					JobExecution execution = stepExecution.getJobExecution();
-					System.out.println("Tasklet running..."+execution.getStatus());
+					stepExecution.setTerminateOnly();
+					//boolean id=simpleJobOperator().stop(execution.getJobId());
+					System.out.println("Tasklet running...................."+execution.getJobId());
 					return RepeatStatus.FINISHED;
 				}
 		};
@@ -166,7 +181,7 @@ public class BatchConfiguration {
 
 	@Bean
 	public Job job() throws Exception {
-		return jobBuilderFactory.get("job").start(step2()).build();
+		return jobBuilderFactory.get("job").incrementer(new RunIdIncrementer()).start(step2()).build();
 	}
 
 	@Bean
